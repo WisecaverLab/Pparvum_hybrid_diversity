@@ -1,0 +1,35 @@
+#!/bin/bash
+#SBATCH --account=jwisecav
+#SBATCH --mail-type=END,FAIL
+#SBATCH --nodes=1
+#SBATCH --partition=cpu
+#SBATCH --ntasks=1
+#SBATCH --time=24:00:00     
+#SBATCH --output=slurm-out/%x.o%j
+#SBATCH --error=slurm-out/%x.e%j
+
+# usage export num='num'; sbatch -J '${num}-iqtree' scripts/07_iqtree.sub
+
+module load biocontainers
+module load iqtree2/2.2.2.9
+
+SCOGLIST="scoglist_${num}.txt"
+OGS=$( cat $SCOGLIST )
+cd /scratch/bell/nwatervo/hybrid_orthofinder/21_genetrees
+for OGNAME in $OGS
+do
+	OGNAME="${OGNAME:0:-3}"
+	
+	if [ -f "${OGNAME}.trim.aln" ];
+	then
+		if [ -d $OGNAME ]; then rm -rf $OGNAME; fi
+		mkdir $OGNAME
+		echo "foo"
+		iqtree2 -s ${OGNAME}.trim.aln -alrt 1000 -bb 1000 -pre ./$OGNAME/$OGNAME
+
+		cp $OGNAME/*.contree .
+
+		tar -zcvf $OGNAME.iqtree.tar.gz $OGNAME
+		rm -rf $OGNAME
+	fi
+done

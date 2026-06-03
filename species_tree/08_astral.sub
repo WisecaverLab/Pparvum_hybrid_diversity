@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --account=jwisecav
+#SBATCH --mail-type=END,FAIL
+#SBATCH --nodes=1
+#SBATCH --partition=cpu
+#SBATCH --ntasks=16
+#SBATCH --time=24:00:00     
+#SBATCH --output=slurm-out/%x.o%j
+#SBATCH --error=slurm-out/%x.e%j
+
+# usage sbatch -J 'ASTRAL' ./scripts/08_astral.sub
+
+module load conda-env/genomics-nw-py3.12.8
+
+TREEDIR="hybrid_orthofinder/21_genetrees"
+
+cat $TREEDIR/*.contree > ./23_coalescent/all_scogs_concatenated.tree
+
+java -jar /depot/jwisecav/apps/bell/ASTRAL-5.7.1/Astral/astral.5.7.1.jar -i ./23_coalescent/all_scogs_concatenated.tree -o ./23_coalescent/Supertree_astral.tree 2> ./23_coalescent/Supertree_astral.log

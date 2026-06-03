@@ -1,0 +1,26 @@
+#!/bin/bash
+#SBATCH --account=jwisecav
+#SBATCH --mail-type=END,FAIL
+#SBATCH --nodes=1
+#SBATCH --partition=cpu
+#SBATCH --ntasks=1
+#SBATCH --time=48:00:00     
+#SBATCH --output=slurm-out/%x.o%j
+#SBATCH --error=slurm-out/%x.e%j
+
+
+# usage export num='num'; sbatch -J ${num}-trim ./scripts/trimal.sub
+module load biocontainers
+module load trimal/1.4.1
+
+#num=88
+ALNDIR='18_guidance'
+TRIMDIR='19_trimal'
+SCOGLIST="scoglist_${num}.txt"
+OGS=$( cat $SCOGLIST )
+for OG in $OGS
+do
+	OG=${OG::-3}
+	echo trimal -nogaps -in $ALNDIR/$OG.aln -out $TRIMDIR/$OG.trim.aln
+	trimal -nogaps -in $ALNDIR/$OG.aln -out $TRIMDIR/$OG.trim.aln
+done

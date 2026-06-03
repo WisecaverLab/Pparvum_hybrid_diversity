@@ -1,0 +1,245 @@
+#!/usr/bin/env python
+
+from scipy.stats import hypergeom
+import statsmodels.stats.multitest as multi
+import pandas as pd
+import sys
+import getopt
+import os
+import os.path
+
+
+##################################################
+### Read in files and declare global variables ###
+##################################################
+
+def usage():
+    print('\nUsage: go-enrich -a <annotation file> -s <gene list> -g <go obo file> [-o <output file> -p <pvalue threshold>]')
+    print("    -a|--annfile <FILE> file containing GO annotations (format: gene,GO)")
+    print("    -s|--setfile <FILE> file containing newline deliminited list of genes of interest")
+    print("    -o|--outfile <FILE> outfile file")
+
+    print("\n    OPTIONAL:")
+    print("    -g|--obofile <FILE> file containing GO ontology in .obo format (default: go.obo)")
+    print("    -p|--pvalue <FLOAT> maximum BH adjusted pvalue to report (default: 0.1)")
+
+
+# Read in command line arguments
+try:
+    options, remainder = getopt.getopt(sys.argv[1:], 'ha:s:g:o:p:', ['help', 'annfile=', 'setfile=', 'obofile=', 'outfile=', 'pvalue='])
+except getopt.GetoptError as err:
+    # print help information and exit:
+    print(err)  # will print something like "option -a not recognized"
+    usage()
+    sys.exit(2)
+
+for opt, arg in options:
+    if opt in ('-h', '--help'):
+        usage()
+        sys.exit()
+    elif opt in ('-a', '--annfile'):
+        annfile = arg
+    elif opt in ('-s', '--setfile'):
+        setfile = arg
+    elif opt in ('-g', '--obofile'):
+        obofile = arg
+    elif opt in ('-o', '--outfile'):
+        outfile = arg
+    elif opt in ('-p', '--pvalue'):
+        pvalue = float(arg)
+command = " ".join(sys.argv)
+
+try:
+    annfile
+    setfile
+    outfile
+except NameError:
+    usage()
+    sys.exit(2)
+
+try:
+    pvalue
+except NameError:
+    pvalue = 0.1 
+    
+    
+try:
+    obofile
+except NameError:
+    obofile = os.path.realpath(__file__)
+    obofile = os.path.split(obofile)[0] + '/go.obo'
+	
+	
+print('Hypergeometric test results:', outfile)
+
+print('GO ontology file:', obofile)
+
+
+isaDict = {}
+goDict = {}
+codeDict = {}
+codeDict['set'] = {}
+codeDict['total'] = {}
+lociDict = {}
+lociDict['set'] = set()
+lociDict['total'] = set()
+
+# Read in Set list
+setSet = set();
+fi = open(setfile)
+for line in fi:
+    line = line.rstrip()
+    setSet.add(line)
+fi.close()
+    
+    
+########################################
+### Load relationship hash from file ###
+########################################
+
+def loadrelationships(file):
+
+    with open(file, "r") as f:
+        content = f.read()
+        # remove end line characters
+        entries = content.split('\n\n')
+        for entry in entries:
+            col = entry.split('\n')
+            
+            currentID = ''
+            currentParents = set()
+            name = ''
+            space = ''
+            
+            for line in col:
+                #print(line[0:6])
+                if line[0:7] == 'id: GO:':
+                    currentID = 'GO:' + line.split(':')[-1]
+                    #print(currentID)
+                    
+                if line[0:6] == 'name: ':
+                    name = line.split(': ')[-1]
+                    #print(name)
+
+                if line[0:11] == 'namespace: ':
+                    space = line.split(': ')[-1]
+                    #print(space)
+
+                if line[0:6] == 'is_a: ':
+                    parentID = line.split(' ')[1]
+                    currentParents.add(parentID)
+                    #print(parentID)
+        
+            goDict[currentID] = space + '\t' + name
+            isaDict[currentID] = currentParents
+
+loadrelationships(obofile)
+
+###########################################
+### Get list of all parents for queryID ###
+###########################################
+lowCount = 1
+highCount = 100000
+
+def getparentlist(queryID):
+    
+    parentSet = set()
+    fullSet = set()
+
+    if queryID in isaDict:
+        for id in isaDict[queryID]:
+            parentSet.add(id)
+            fullSet.add(id)
+        
+    while len(parentSet) > 0:
+
+        parentID = parentSet.pop()
+
+        tempSet = isaDict.get(parentID, set())
+        for temp in tempSet:
+            if temp not in fullSet:
+                fullSet.add(temp)
+                parentSet.add(temp)
+
+    return fullSet
+            
+####################################
+### Parse GOs in Annotation File ###
+####################################
+fi = open(annfile)
+
+for line in fi:
+    line = line.rstrip()
+    locus = line.split('\t')[0]
+    goterms = line.split('\t')[1]
+    goSet = set()
+        
+    for go in goterms.split(';'):
+        goSet.add(go)
+        returnedparents = getparentlist(go)
+        
+        for parent in returnedparents:
+            goSet.add(parent)
+    #print(locus,goSet)
+    
+    for go in goSet:
+        if go not in codeDict['total']:
+            codeDict['total'][go] = set()
+
+        codeDict['total'][go].add(locus)
+        lociDict['total'].add(locus)    
+
+
+        if locus in setSet:            
+            if go not in codeDict['set']:
+                codeDict['set'][go] = set()
+
+            codeDict['set'][go].add(locus)
+            lociDict['set'].add(locus)
+
+fi.close()
+
+
+############################################
+### Create hypergeometric test dataframe ###
+############################################
+df = pd.DataFrame(columns=['go','cat','desc','x','N','n','M','pval','genelist'])
+
+for go in codeDict['set']:
+
+    count = len(codeDict['set'][go])
+    if count > highCount or count < lowCount:
+        continue
+        
+    if go not in goDict:
+        continue
+    desc = goDict[go]
+    cat = desc.split('\t')[0]
+    desc = desc.split('\t')[1]
+        
+    # x is still the number of drawn "successes" (ie no. genes in set and in go category)
+    x = len(codeDict['set'][go])
+    genelist = ', '.join(codeDict['set'][go])
+    
+    # N is the sample size (ie no. genes in set)
+    N = len(lociDict['set'])
+    
+    # n is the number of successes in the population (ie no. genes in go category)
+    n = len(codeDict['total'][go])
+    
+    # M is the population size (ie no. genes total)
+    M = len(lociDict['total'])
+        
+    # https://alexlenail.medium.com/understanding-and-implementing-the-hypergeometric-test-in-python-a7db688a7458
+    # https://github.com/jdrudolph/goenrich
+    pval = hypergeom.sf(x-1, M, n, N)
+    df.loc[len(df.index)] = [go,cat,desc,x,N,n,M,pval,genelist]  
+
+# Adjust pvalues for multiple tests
+adjpval = multi.multipletests(df['pval'].tolist(), alpha=0.05, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+df['adjpval'] = adjpval
+df = df[['go','cat','desc','x','N','n','M','pval','adjpval','genelist']]
+
+# Print subset based on pvalue
+subdf = df.loc[df['adjpval'] <= pvalue]
+subdf.to_csv(outfile, sep='\t', index=False)

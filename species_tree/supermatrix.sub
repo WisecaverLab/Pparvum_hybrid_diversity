@@ -1,0 +1,42 @@
+#!/bin/bash
+#SBATCH -A bio220138
+#SBATCH -p wholenode
+#SBATCH --job-name=supermatrix
+#SBATCH --mail-user=nwatervo@purdue.edu
+#SBATCH --mail-type=FAIL
+#SBATCH --time=96:00:00
+#SBATCH --output=slurm-out/%x.o%j
+#SBATCH --error=slurm-out/%x.e%j
+
+#module load biocontainers
+#module load iqtree/2.2.0
+
+#### Identify the best partition scheme
+# http://www.iqtree.org/doc/Advanced-Tutorial#choosing-the-right-partitioning-scheme
+# using the FreeRate heterogeneity model
+#mkdir -p 06_iqtree2_allparvumstrains
+#/anvil/scratch/x-nwatervoort/isolates_diversity_tree/scripts/software/iqtree-2.2.0-Linux/bin/iqtree2 -s ./06_iqtree2_allparvumstrains/Supermatrix_in.aln -p ./06_iqtree2_allparvumstrains/Supermatrix_in.param -m MF+MERGE -rcluster 10 --prefix ./06_iqtree2_allparvumstrains/Supermatrix_param_dna
+
+
+#### Contstruct the best unrooted tree DNA
+/anvil/scratch/x-nwatervoort/isolates_diversity_tree/scripts/software/iqtree-2.2.0-Linux/bin/iqtree2 -s ./06_iqtree2_allparvumstrains/Supermatrix_in.aln -p ./06_iqtree2_allparvumstrains/Supermatrix_param_dna.best_model.nex -B 1000 -T AUTO --prefix ./06_iqtree2_allparvumstrains/Supermatrix_iqtree_dna
+
+
+#### Rootstrap the tree
+# http://www.iqtree.org/doc/Rootstrap
+#iqtree2 -safe -s Supermatrix_in.aln -p Supermatrix_param_dna.best_model.nex --model-joint 12.12 -B 1000 -T AUTO --prefix Supermatrix_iqtree_dna_rootstrap
+
+
+#### Test root positions concatenated tree
+#iqtree2 -safe -s Supermatrix_in.aln -p Supermatrix_param_dna.best_model.nex --model-joint 12.12 --root-test -zb 10000 -au -te Supermatrix_iqtree_dna_rootstrap.treefile -T AUTO --prefix Supermatrix_iqtree_dna_roottest
+
+
+#### Calculate concordance factors for concatinated and astral tree
+# http://www.iqtree.org/doc/Concordance-Factor
+#SPECIESTREE='Supermatrix_iqtree_dna.treefile.tre'
+#GENETREES='Supertree_in.tree'
+#ALNFILE='Supermatrix_in.aln'
+#iqtree2 -t $SPECIESTREE --gcf $GENETREES -s $ALNFILE -seed 12345 --scf 1000 --prefix ./04_iqtree2/concord_supermatrix -T 32
+
+#SPECIESTREE='Supertree_astral.tree'
+#iqtree2 -t $SPECIESTREE --gcf $GENETREES -s     $ALNFILE -seed 12345 --scf 1000 --prefix concord_supertree -T 32

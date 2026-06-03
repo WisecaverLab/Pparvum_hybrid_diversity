@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH --job-name=scratch-orthofinder
+#SBATCH --account=jwisecav
+#SBATCH --mail-user=nwatervo@purdue.edu
+#SBATCH --mail-type=END,FAIL
+#SBATCH --nodes=1
+#SBATCH --ntasks=128
+#SBATCH --time=14-00:00:00
+#SBATCH --partition=cpu
+#SBATCH --output=slurm-out/%x.o%j
+#SBATCH --error=slurm-out/%x.e%j
+
+
+module load biocontainers
+module load orthofinder/2.5.5
+module load blast/2.13.0
+module load iqtree2/2.2.2.9
+
+
+orthofinder -d -f ./16_orthofinder_fasta -M msa -o ./17_orthofinder -t 128 -T iqtree
+

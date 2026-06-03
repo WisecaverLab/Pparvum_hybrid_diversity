@@ -1,0 +1,14 @@
+﻿Variant Type,Strain,Scaffold,Start (Mbp),End (Mbp),Variant subtype,Progenitor
+Chromosomal Variation,12A1-SC1,8,scaffold start,scaffold end,reversion to diploid,12A1
+Chromosomal Variation,UTEX2797-SC1,9,scaffold start,scaffold end,reversion to diploid,UTEX2797
+Chromosomal Variation,"UTEX2797-SC2, UTEX2797-SC3",22,scaffold start,scaffold end,A1-derived trisomy,UTEX2797
+Chromosomal Variation,"12A1-SC1, 12A1-SC3",25,scaffold start,scaffold end,A1-derived trisomy,12A1
+Telomeric Variation,12A1-SC3,8,scaffold start,0.7,A2 telomeric segmental loss,12A1
+Telomeric Variation,12A1-SC3,8,scaffold start,0.39,A2 telomeric segmental loss,12A1
+Telomeric Variation,"UTEX2797-SC2, UTEX2797-SC3",8,1.25,scaffold end,A2 telomeric segmental duplication,UTEX2797
+Telomeric Variation,"UTEX2797-SC2, UTEX2797-SC3",9,scaffold start,0.3,A2 telomeric segmental loss,UTEX2797
+Interstitial Variation,12A1-SC1,2,3.19,3.39,A1 interstitial segmental loss,12A1
+Interstitial Variation,12A1-SC2,8,0.65,2.05,A2 interstitial segmental duplication,12A1
+Interstitial Variation,12A1-SC2,8,2.05,2.9,A2 interstitial segmental loss,12A1
+Interstitial Variation,"UTEX2797-SC1, UTEX2797-SC2, UTEX2797-SC3, UTEX2797-SC4",21,1.49,1.55,A2 interstitial segmental loss,UTEX2797
+Interstitial Variation,"UTEX2797-SC1, UTEX2797-SC4",21,1.58,1.7,A2 interstitial segmental loss,UTEX2797

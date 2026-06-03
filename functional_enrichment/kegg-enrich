@@ -1,0 +1,200 @@
+#!/usr/bin/env python
+
+from scipy.stats import hypergeom
+import statsmodels.stats.multitest as multi
+import pandas as pd
+import sys
+import getopt
+import os
+import os.path
+import glob
+
+
+##################################################
+### Read in files and declare global variables ###
+##################################################
+
+def usage():
+    print('\nUsage: kegg-enrich -a <annotation file> -s <gene list> -o <output file> ')
+    print("    -a|--annfile <FILE> file containing KEGG annotations (format: gene,KEGG)")
+    print("    -s|--setfile <FILE> file containing newline deliminited list of genes of interest")
+    print("    -o|--outfile <FILE> outfile file")
+
+
+# Read in command line arguments
+try:
+    options, remainder = getopt.getopt(sys.argv[1:], 'ha:s:o:', ['help', 'annfile=', 'setfile=', 'outfile='])
+except getopt.GetoptError as err:
+    # print help information and exit:
+    print(err)  # will print something like "option -a not recognized"
+    usage()
+    sys.exit(2)
+
+for opt, arg in options:
+    if opt in ('-h', '--help'):
+        usage()
+        sys.exit()
+    elif opt in ('-a', '--annfile'):
+        annfile = arg
+    elif opt in ('-s', '--setfile'):
+        setfile = arg
+    elif opt in ('-o', '--outfile'):
+        outfile = arg
+command = " ".join(sys.argv)
+
+try:
+    annfile
+    setfile
+    outfile
+except NameError:
+    usage()
+    sys.exit(2)
+    
+    
+keggfile = os.path.realpath(__file__)
+keggfile = os.path.split(keggfile)[0] + '/KEGG_KO_ALL_PARENTS_Jul-28-2022.txt'
+# keggfile = os.path.split(keggfile)[0] + '/KEGG_KOs_ALL_PARENTS_Dec-26-2023.txt'    
+    
+print('Hypergeometric test results:', outfile)
+
+
+isaDict = {}
+annotate_line = []
+keggDict = {}
+codeDict = {}
+codeDict['set'] = {}
+codeDict['total'] = {}
+lociDict = {}
+lociDict['set'] = set()
+lociDict['total'] = set()
+
+# Read in Set list
+setSet = set();
+fi = open(setfile)
+for line in fi:
+    line = line.rstrip()
+    setSet.add(line)
+fi.close()
+
+lowCount = 2
+highCount = 100000
+
+
+#############################################
+### Load KEGG relationship hash from file ###
+#############################################
+
+fi = open(keggfile)
+
+for line in fi:
+    currentParents = set()
+    line = line.rstrip().split('\t')
+    currentID = line.pop(0).split(':')[0]
+    
+    for parent in line:
+        currentParents.add(parent)
+        
+    isaDict[currentID] = currentParents
+
+fi.close()
+
+descfiles = os.path.realpath(__file__)
+descfiles = os.path.split(descfiles)[0] + '/*DESC_Jul-22-2022.txt'
+
+for infile in glob.glob(descfiles):
+    #print(infile)
+    fi = open(infile)
+    
+    for line in fi:
+        term, desc = line.rstrip().split('\t')
+        #print(term)
+        keggDict[term] = desc
+    
+    fi.close()
+    
+    
+    
+####################################
+### Parse GOs in Annotation File ###
+####################################
+
+fi = open(annfile)
+
+for line in fi:
+    line = line.rstrip()
+    locus = line.split('\t')[0]
+    keggterms = line.split('\t')[1]
+    keggSet = set()
+        
+    for kegg in keggterms.split(';'):
+        keggSet.add(kegg)
+        returnedparents = []
+        if kegg  in isaDict:
+        	returnedparents = isaDict[kegg]
+        
+        for parent in returnedparents:
+            keggSet.add(parent)
+    #print(locus,goSet)
+    
+    for kegg in keggSet:
+        if kegg not in codeDict['total']:
+            codeDict['total'][kegg] = set()
+
+        codeDict['total'][kegg].add(locus)
+        lociDict['total'].add(locus)    
+
+
+        if locus in setSet:            
+            if kegg not in codeDict['set']:
+                codeDict['set'][kegg] = set()
+
+            codeDict['set'][kegg].add(locus)
+            lociDict['set'].add(locus)
+
+fi.close()
+
+
+df = pd.DataFrame(columns=['kegg','desc','x','N','n','M','pval','genelist'])
+
+for kegg in codeDict['set']:
+
+    count = len(codeDict['set'][kegg])
+    if count > highCount or count < lowCount:
+        continue
+        
+    desc = ''
+    if kegg in keggDict:
+        desc = keggDict[kegg]
+
+    # x is still the number of drawn "successes" (ie no. genes in set and in go category)
+    x = len(codeDict['set'][kegg])
+    genelist = ', '.join(codeDict['set'][kegg])
+    
+    # N is the sample size (ie no. genes in set)
+    N = len(lociDict['set'])
+    
+    # n is the number of successes in the population (ie no. genes in go category)
+    n = len(codeDict['total'][kegg])
+    
+    # M is the population size (ie no. genes total)
+    M = len(lociDict['total'])
+        
+    # https://alexlenail.medium.com/understanding-and-implementing-the-hypergeometric-test-in-python-a7db688a7458
+    # https://github.com/jdrudolph/goenrich
+    pval = hypergeom.sf(x-1, M, n, N)
+    df.loc[len(df.index)] = [kegg,desc,x,N,n,M,pval,genelist]  
+
+# Adjust pvalues for multiple tests
+if len(df['pval'].tolist()) > 0:
+    adjpval = multi.multipletests(df['pval'].tolist(), alpha=0.05, method='fdr_bh', is_sorted=False, returnsorted=False)[1]
+    df['adjpval'] = adjpval
+    df['set'] = os.path.split(setfile)[1]
+
+    df = df[['set','kegg','desc','x','N','n','M','pval','adjpval','genelist']]
+
+    df.to_csv(outfile, sep='\t', index=False)
+
+
+
+
+

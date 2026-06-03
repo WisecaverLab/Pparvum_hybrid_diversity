@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH -A bio220138
+#SBATCH -p shared
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --job-name=iqtree
+#SBATCH --mail-user=nwatervo@purdue.edu
+#SBATCH --mail-type=FAIL
+#SBATCH --time=12:00:00
+#SBATCH --output=slurm-out/%x.o%j
+#SBATCH --error=slurm-out/%x.e%j
+
+# usage export OGNAME='ogname'; sbatch -J '${OGNAME}-iqtree' scripts/07_iqtree.sub
+
+module load biocontainers
+module load iqtree/2.1.2
+
+
+cd "07_genetrees"
+if [ -d $OGNAME ]; then rm -rf $OGNAME; fi
+mkdir $OGNAME
+
+iqtree -s /anvil/scratch/x-nwatervoort/isolates_diversity_tree/05_over150bp/$OGNAME.trim.aln -alrt 1000 -bb 1000 -pre /anvil/scratch/x-nwatervoort/isolates_diversity_tree/07_genetrees/$OGNAME/$OGNAME
+
+cp $OGNAME/*.contree .
+
+tar -zcvf $OGNAME.iqtree.tar.gz $OGNAME
+rm -rf $OGNAME

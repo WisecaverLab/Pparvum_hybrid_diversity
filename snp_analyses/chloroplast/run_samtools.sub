@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --job-name=samtool
+#SBATCH --partition=wisecaver
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+###SBATCH --mem=500GB
+#SBATCH --time=4:00:00     
+#SBATCH --output=slurmout/%x.o%j
+#SBATCH --error=slurmout/%x.e%j
+
+# usage: export STRAIN='strain'; sbatch --mail-user=$EMAIL run_samtools.sub
+
+ml samtools/1.21
+
+cd ../../../../hybrid_diversity/4_read_mapping/3_deduplicated/2_nuc_and_chloroplast
+
+samtools index ${STRAIN}_markduplicates.bam
+samtools view -b ${STRAIN}_markduplicates.bam scf7180000001165 > ${STRAIN}_chloro.bam
+samtools index ${STRAIN}_chloro.bam
+
+
