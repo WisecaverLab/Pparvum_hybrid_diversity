@@ -2,8 +2,8 @@ library(poppr)
 library(vcfR)
 library(adegenet)
 
-metafile <- '../../../../hybrid_diversity/5_snp_analyses/6_hybrid_analyses/metadata.txt'
-vcffile <- '../../../../hybrid_diversity/5_snp_analyses/2_atype_network/atype_variants_qualfiltered_maffiltered_renamed_justhybrids.recode.vcf'
+metafile <- '../../../../hybrid_diversity/5_snp_analyses/6_hybrid_analyses/metadata_noSCs.txt'
+vcffile <- '../../../../hybrid_diversity/5_snp_analyses/2_atype_network/atype_variants_qualfiltered_maffiltered_renamed_justhybrids_noSCRs_noAnomalies.recode.vcf'
 permutations <- 999
 
 cat("Loading VCF file...\n")

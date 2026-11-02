@@ -6,10 +6,12 @@
 #SBATCH --cpus-per-task=16
 ###SBATCH --mem=30GB
 #SBATCH --time=24:00:00     
-#SBATCH --output=%x.o%j
-#SBATCH --error=%x.e%j
+#SBATCH --output=../../../../hybrid_diversity/5_snp_analyses/6_hybrid_analyses/%x.o%j
+#SBATCH --error=../../../../hybrid_diversity/5_snp_analyses/6_hybrid_analyses/%x.e%j
 
 # usage: sbatch --mail-user=$EMAIL
 
 ml r/4.5.1
-Rscript amova_analysis.Rscript.r
+Rscript amova_analysis_Rscript.r
+
+
